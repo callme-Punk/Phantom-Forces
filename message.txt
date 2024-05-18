@@ -1,0 +1,265 @@
+-- incognito support made by @dank @bitdancer needs to learn how to iv in pairs(getchildren() >:(
+
+--// Have fun pasting, made the code extra messy just for you 😁 --nuh uh
+--// Made by @dementia enjoyer
+
+--// settings
+local FeatureTable = {
+    Combat = {
+        SilentAim = true,
+        TeamCheck = true,
+        Hitpart = 7, --// 6 = Torso, 7 = Head
+        SilentAimRadius = 30,
+    },
+    Visuals = {
+        Box = {Enabled = true, Color = Color3.fromRGB(255, 125, 0)},
+        FOV = {Color = Color3.fromRGB(255, 125, 0)},
+        Tracers = {Enabled = false, Color = Color3.fromRGB(133, 176, 255)},
+        Chams = {Enabled = true, FillColor = Color3.fromRGB(255, 125, 0), OutlineColor = Color3.fromRGB(255, 255, 255), VisibleOnly = false, Transparency = .5},
+
+        TeamCheck = true,
+        UseTeamColor = true, --// Team colors dont apply to chams btw
+    },
+    Misc = {
+        Bhop = true,
+        Watermark = true,
+    },
+}
+
+local Storage = {
+    Index = {
+        Head = 7,
+        Torso = 6,
+    },
+    ESP = {
+        Boxes = {},
+        Tracers = {},
+        Chams = {},
+    },
+    Other = {
+        ViewportSize = workspace.CurrentCamera.ViewportSize
+    },
+}
+
+local Camera = workspace.CurrentCamera
+local Mouse = game.Players.LocalPlayer:GetMouse()
+local UserInputService = game:GetService("UserInputService")
+
+-- You will experience severe FPS drops if you fill the shapes since i decided to draw each pixel on its own.
+local gui = Instance.new("ScreenGui")
+gui.Parent = game.CoreGui
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(1, 0, 1, 0)
+frame.BackgroundTransparency = 1
+frame.Parent = gui
+
+function drawPixel(x, y, color)
+    local pixel = Instance.new("Frame")
+    pixel.Size = UDim2.new(0, 1, 0, 1)
+    pixel.Position = UDim2.new(0, x, 0, y)
+    pixel.BackgroundColor3 = color
+    pixel.BorderSizePixel = 0
+    pixel.Parent = frame
+end
+
+local function drawCircle(properties)
+    local center = properties.Position
+    local radius = properties.Radius
+    local color = properties.Color
+    local filled = properties.Filled
+
+    local function plot(xc, yc, x, y)
+        drawPixel(xc + x, yc + y, color)
+        drawPixel(xc - x, yc + y, color)
+        drawPixel(xc + x, yc - y, color)
+        drawPixel(xc - x, yc - y, color)
+        drawPixel(xc + y, yc + x, color)
+        drawPixel(xc - y, yc + x, color)
+        drawPixel(xc + y, yc - x, color)
+        drawPixel(xc - y, yc - x, color)
+    end
+
+    local x = 0
+    local y = radius
+    local p = 1 - radius
+
+    while x < y do
+        if filled then
+            for i = x, y do
+                plot(center.X, center.Y, x, i)
+                plot(center.X, center.Y, i, x)
+            end
+        else
+            plot(center.X, center.Y, x, y)
+            plot(center.X, center.Y, y, x)
+        end
+
+        x = x + 1
+        if p < 0 then
+            p = p + 2 * x + 1
+        else
+            y = y - 1
+            p = p + 2 * (x - y) + 1
+        end
+    end
+end
+
+local Drawing = {}
+Drawing.__index = Drawing
+
+function Drawing.new(shape, properties)
+    local self = setmetatable({}, Drawing)
+    if shape == "circle" then
+        drawCircle(properties)
+    end
+    return self
+end
+
+
+Drawing.new("circle", {
+    Radius = FeatureTable.Combat.SilentAimRadius,
+    Color = FeatureTable.Visuals.FOV.Color,
+    Filled = false,
+    Visible = true,
+    Position = Vector2.new(workspace.CurrentCamera.ViewportSize.X/2, workspace.CurrentCamera.ViewportSize.Y/2) - Vector2.new(1,37)
+})
+
+
+
+local Functions = {
+    Normal = {},
+    ESP = {},
+}
+
+function Functions.Normal:GetTeam(Player)
+    if Player ~= nil and Player.Parent ~= nil and Player:FindFirstChildOfClass("Folder") then
+        local Helmet = Player:FindFirstChildWhichIsA("Folder"):FindFirstChildOfClass("MeshPart")
+        if Helmet then
+            if Helmet.BrickColor == BrickColor.new("Black") then
+                return game.Teams.Phantoms
+            else
+                return game.Teams.Ghosts
+            end
+        end
+    end
+end
+
+function Functions.Normal:GetPlayers()
+    local PlayerList = {}
+    for _,Teams in pairs(workspace.Players:GetChildren()) do
+        for _,Players in pairs(Teams:GetChildren()) do
+            table.insert(PlayerList, Players)
+        end
+    end
+    return PlayerList
+end
+
+function Functions.Normal:Measure(Origin, End)
+    return (Origin - End).Magnitude
+end
+
+function Functions.Normal:GetGun()
+    for i,Viewmodel in pairs(Camera:GetChildren()) do
+        if Viewmodel:IsA("Model") and not Viewmodel.Name:find("Arm") then
+            return Viewmodel
+        end
+    end
+    return nil
+end
+
+function Functions.Normal:getClosestPlayer()
+    local Player = nil
+    local Distance = math.huge
+    for i,Players in pairs(Functions.Normal:GetPlayers()) do
+        if Players ~= nil then
+            local Hitpart = Players:GetChildren()[FeatureTable.Combat.Hitpart]
+            local Screen = Camera:WorldToViewportPoint(Hitpart.Position)
+            local MeasureDistance = (Vector2.new(Mouse.X, Mouse.Y) - Vector2.new(Screen.X, Screen.Y)).Magnitude
+            if MeasureDistance < Distance and MeasureDistance <= FeatureTable.Combat.SilentAimRadius *1.25 then --// not how  you actually get an accurate circle but i dont care lol...
+                Player = Players
+                Distance = MeasureDistance
+            end
+        end
+    end
+    return Player
+end
+
+
+function Functions.ESP:ClearTable(esps, esptable, index)
+    for i = 1, #esps do
+        esps[i]:Destroy()
+    end
+    do --// Table clear
+        table.remove(esptable, index)
+        table.remove(esptable, index-1)
+    end
+end
+
+task.spawn(function()
+    while task.wait() do --// gl working with the dogshit code, skids :D
+        if FeatureTable.Combat.SilentAim then
+            local Target = Functions.Normal:getClosestPlayer()
+            if Target ~= nil and (FeatureTable.Combat.TeamCheck and Functions.Normal:GetTeam(Target) ~= game.Players.LocalPlayer.Team or not FeatureTable.Combat.TeamCheck) then
+
+                local Hitpart = Target:GetChildren()[FeatureTable.Combat.Hitpart]
+                local Gun = Functions.Normal:GetGun()
+        
+                if Hitpart and Gun then
+                    for i, Stuff in pairs(Gun:GetChildren()) do
+                        pcall(function()
+                            local Joints = Stuff:GetJoints()
+                            if Stuff.Name:find("SightMark") or Stuff.Name:find("FlameSUP") or Stuff.Name:find("Flame") then
+                                Joints[1].C0 = Joints[1].Part0.CFrame:ToObjectSpace(CFrame.lookAt(Joints[1].Part1.Position, Hitpart.Position))
+                            end
+                        end)
+                    end
+                end
+            end
+        end
+        
+        for i, Player in pairs(Functions.Normal:GetPlayers()) do
+            if Player ~= nil then
+        
+                local Highlight = Player:FindFirstChildOfClass("Highlight")
+                local Team = Functions.Normal:GetTeam(Player)
+        
+                if FeatureTable.Visuals.Chams.Enabled and (FeatureTable.Visuals.TeamCheck and tostring(Team) ~= game.Players.LocalPlayer.Team.Name or not FeatureTable.Visuals.TeamCheck) then
+                    
+                    if not Highlight then
+                        Highlight = Instance.new("Highlight", Player)
+                    end
+        
+                    Highlight.Enabled = true
+                    Highlight.Adornee = Player
+                    Highlight.FillColor = FeatureTable.Visuals.Chams.FillColor
+                    Highlight.OutlineColor = FeatureTable.Visuals.Chams.OutlineColor
+                    Highlight.FillTransparency = FeatureTable.Visuals.Chams.Transparency
+                    Highlight.OutlineTransparency = FeatureTable.Visuals.Chams.Transparency
+                    Highlight.DepthMode = FeatureTable.Visuals.Chams.VisibleOnly and Enum.HighlightDepthMode.Occluded or Enum.HighlightDepthMode.AlwaysOnTop
+
+                else
+                    if Highlight then
+                        Highlight:Destroy()
+                    end
+                end
+                
+            end
+        end
+    
+        if FeatureTable.Misc.Bhop and UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+            local LocalPlayer = workspace.Ignore:FindFirstChild("RefPlayer")
+            if LocalPlayer then
+                local Humanoid = LocalPlayer:FindFirstChildOfClass("Humanoid")
+                if Humanoid then
+                    Humanoid.Jump = true
+                end
+            end
+        end
+
+        Camera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
+            Storage.Other.ViewportSize = Camera.ViewportSize
+        end)
+        --// Made by @dementia enjoyer 😁
+    end
+end)
