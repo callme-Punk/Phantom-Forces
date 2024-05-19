@@ -1,8 +1,4 @@
--- incognito support made by @dank @bitdancer needs to learn how to iv in pairs(getchildren() >:(
-
---// Have fun pasting, made the code extra messy just for you 😁 --nuh uh
---// Made by @dementia enjoyer
-
+-- incognito support made by "_scep." on discord
 --// settings
 local FeatureTable = {
     Combat = {
