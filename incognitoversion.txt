@@ -1,4 +1,5 @@
--- incognito support made by "_scep." on discord
+-- incognito version made by "_scep." on discord
+-- OP = "eldmonstret" on discord who made the solara version
 --// settings
 local FeatureTable = {
     Combat = {
