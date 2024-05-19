@@ -1,4 +1,3 @@
 -- copied from the OP Bitdancer ,discord = "eldmonstret"
 -- script can also be found at "https://rscripts.net/script/eclipselol-or-phantom-forces-script-for-solara-level-3-executors-or-may-2024-open-sourced-9rfd"
--- 
 loadstring(game:HttpGet("https://raw.githubusercontent.com/dementiaenjoyer/homohack/main/homohack.lua"))()
